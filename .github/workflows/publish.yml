@@ -1,0 +1,29 @@
+#publish Docker image to ghcr
+name: publish
+on: [push]
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+jobs:
+  publish-vanilla-appstream-testenv-package:
+    runs-on: ubuntu-latest
+    permissions:
+     contents: read
+     packages: write
+    
+    steps:
+     - name: Checkout repository
+       uses: actions/checkout@v3
+       
+     - name: Log in to the Container registry
+       uses: docker/login-action@v2
+       with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        
+     - name: Build and push Docker image
+       run: |
+          docker build . --tag ghcr.io/kbdharun/vanilla-appstream-testenv-package:latest
+          docker run ghcr.io/kbdharun/vanilla-appstream-testenv-package:latest
+          docker push ghcr.io/kbdharun/vanilla-appstream-testenv-package:latest
