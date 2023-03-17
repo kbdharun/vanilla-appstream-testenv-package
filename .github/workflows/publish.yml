@@ -1,11 +1,17 @@
-#publish Docker image to ghcr
-name: publish
+name: build and publish
 on: [push]
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+    IMAGE_NAME: ${{ github.repository }}
+    IMAGE_TAGS: ${{ github.ref_name}} latest
+    IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+    DOCKER_REGISTRY: docker.io/${{ github.repository_owner }}
+    REGISTRY_USER: ${{ github.actor }}
+    REGISTRY_PASSWORD: ${{ github.token }}
+    DOCKER_USER: ${{ secrets.DOCKER_USER }}
+    DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
 jobs:
-  publish-vanilla-appstream-testenv-package:
+ build-package:
     runs-on: ubuntu-latest
     permissions:
      contents: read
@@ -15,15 +21,31 @@ jobs:
      - name: Checkout repository
        uses: actions/checkout@v3
        
-     - name: Log in to the Container registry
-       uses: docker/login-action@v2
+     - name: Buildah Action
+       id: build-action
+       uses: redhat-actions/buildah-build@v2
        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-        
-     - name: Build and push Docker image
-       run: |
-          docker build . --tag ghcr.io/kbdharun/vanilla-appstream-testenv-package:latest
-          docker run ghcr.io/kbdharun/vanilla-appstream-testenv-package:latest
-          docker push ghcr.io/kbdharun/vanilla-appstream-testenv-package:latest
+         image: ${{ env.IMAGE_NAME }}
+         tags: ${{ env.IMAGE_TAGS }}
+       
+     - name: Push To GHCR
+       uses: redhat-actions/push-to-registry@v2
+       id: push
+       with:
+        image: ${{ steps.build-action.outputs.image }}
+        tags: ${{ steps.build-action.outputs.tags }}
+        registry: ${{ env.IMAGE_REGISTRY }}
+        username: ${{ env.REGISTRY_USER }}
+        password: ${{ env.REGISTRY_PASSWORD }}
+          
+     - name: Push To docker
+       uses: redhat-actions/push-to-registry@v2
+       id: pushdocker
+       with:
+        image: ${{ steps.build-action.outputs.image }}
+        tags: ${{ steps.build-action.outputs.tags }}
+        registry: ${{ env.DOCKER_REGISTRY }}
+        username: ${{ secrets.DOCKER_USER }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        extra-args: |
+      
